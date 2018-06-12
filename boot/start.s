@@ -21,7 +21,14 @@ bss_start:
 .globl _start
 _start:
   b reset
-
+  b _undefined_instruction
+  b _software_interrupt
+  b _prefetch_abort
+  b _data_abort
+  b _not_used
+  b _irq
+  b _fiq
+  
 /*******************************************************************************
 * Reset Function
 *******************************************************************************/
@@ -42,24 +49,91 @@ reset:
 	mcr	p15, 0, r0, c7, c5, 0	@ invalidate I-cache
   mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #0x00002000	@ clear bit 13 (V), normal exception vectors selected
-  bic r0, r0, #0x00001000 @ clear bit 12 (I), disable I-cache
+  orr r0, r0, #0x00001000 @ clear bit 12 (I), enable I-cache
   bic	r0, r0, #0x00000300 @ clear bits 9 and 8 (RS), disable ROM and system protection
-	bic	r0, r0, #0x00000005	@ clear bits 2 and 0 (CM), disable D-cache and MMU
-	orr	r0, r0, #0x00000002	@ set bit 1 (A), enable alignment fault checking
+	orr	r0, r0, #0x00000007 @ set bits 2, 1 and 0 (CAM), enable D-cache, alignment fault checking and MMU
   mcr	p15, 0, r0, c1, c0, 0
+
+  /* Wait for cache initialization (around 256 cycles) */
+  mov r0, #100
+  mov r1, #0
+cache_wait:
+  sub r0, r0, #1
+  cmp r0, r1
+  bne cache_wait
 
   /* Jump to ROM section */
   mov r0, #0
-  add r0, r0, =VERSATILE_ROM_START + code_offset
+  add r0, r0, =code_offset + VERSATILE_ROM_START
   mov pc, r0 @ jump to the next instruction in ROM position
 
 code_offset:
   /* Unmap the memory */
   ldr r0, =VERSATILE_SYSTEM_BASE
-  bic r0, r0, #0x100 @ clear bit 8 in system control register
+  bic r0, r0, #0x000000100 @ clear bit 8, clear the DEVCHIP REMAP in system control register
   str r0, =VERSATILE_SYSTEM_BASE
 
-  /* Relocate the code */
+  /* Initialize SDRAM based on register values for typical operation in versatile reference manual */
+  mov r0, #0x0
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x008
+  mov r0, #0x3
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x020
+  mov r0, #0x22
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x024
+  mov r0, #0x111
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x028
+  mov r0, #0x2
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x030
+  mov r0, #0x3
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x034
+  mov r0, #0x5
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x038
+  mov r0, #0x4
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x044
+  mov r0, #0x5
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x048
+  mov r0, #0x5
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x04c
+  mov r0, #0x5
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x050
+  mov r0, #0x1
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x054
+  mov r0, #0x2
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x058
+  mov r0, #0x1
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x05c
+  mov r0, #0x5880
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x100
+  mov r0, #0x202
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x104
+  mov r0, #0x5880
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x120
+  mov r0, #0x202
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x124
+  mov r0, #0x5880
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x140
+  mov r0, #0x202
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x144
+  mov r0, #0x5880
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x160
+  mov r0, #0x202
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x164
+  mov r0, #0x0
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x400
+  mov r0, #0x2
+  str r0, =VERSATILE_MPMC_REGS_BASE + 0x408
+  mov r0, #0x1
+  str r0, =VERSATILE_MPMC_REGS_BASE @ enable SDRAM
+
+  /* Wait for SDRAM initialization (around a few hundred us) */
+  mov r0, #0xffff
+  mov r1, #0
+sdram_wait:
+  sub r0, r0, #1
+  cmp r0, r1
+  bne sdram_wait
+
+  /* Relocate the code and jump to SDRAM */
 relocate:
   ldr r2, =_program_end
   ldr r0, #0
@@ -70,7 +144,7 @@ relocate:
   bne relocate
   mov pc, #0
 
-  /* Set bss data to 0 */
+  /* Set bss variables to 0 */
 clear_bss:
   mov r0, #0
   ldr r1, =_bss_start

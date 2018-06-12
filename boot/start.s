@@ -47,14 +47,43 @@ reset:
 	bic	r0, r0, #0x00000005	@ clear bits 2 and 0 (CM), disable D-cache and MMU
 	orr	r0, r0, #0x00000002	@ set bit 1 (A), enable alignment fault checking
   mcr	p15, 0, r0, c1, c0, 0
-  b #0x34001000
 
-  . = 0x1000
+  /* Jump to ROM section */
+  mov r0, #0
+  add r0, r0, =VERSATILE_ROM_START + code_offset
+  mov pc, r0 @ jump to the next instruction in ROM position
+
+code_offset:
+  /* Unmap the memory */
+  ldr r0, =VERSATILE_SYSTEM_BASE
+  bic r0, r0, #0x100 @ clear bit 8 in system control register
+  str r0, =VERSATILE_SYSTEM_BASE
+
+  /* Relocate the code */
+relocate:
+  ldr r2, =_program_end
+  ldr r0, #0
+  ldr r1, =clear_bss
+  ldmia	r1!, {r10-r11}
+	stmia	r0!, {r10-r11}
+  cmp r2, r1
+  bne relocate
+  mov pc, #0
+
+  /* Set bss data to 0 */
+clear_bss:
+  mov r0, #0
+  ldr r1, =_bss_start
+  ldr r2, =_bss_end
+  stmia r1!, {r0}
+  cmp r1, r2
+  bne clear_bss
+
   /* Set up stack pointer and jump to C codes */
-  mov r0, =VERSATILE_SDRAM_END
-  bic	r0, r0, #3 @ 4-byte alignment for 32-bit instruction
-	mov	sp, r0 @ initialize sp
-	bl	board_init
+  ldr r0, =VERSATILE_SDRAM_END
+  bic	r0, r0, #7 @ 8-byte alignment for ARM stack
+	mov	sp, r0
+	b	board_init
 
 /*******************************************************************************
 * Indirect Vector Table

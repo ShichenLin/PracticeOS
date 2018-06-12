@@ -11,6 +11,8 @@
 #define putw(a, d) (*(volatile u32 *)(a) = (d))
 #define putdw(a, d) (*(volatile u64 *)(a) = (d))
 
+/* register read and write */
+#define reg_read(a) get
 /* gpio input and output */
 #define gpio_in(port, pin)
 

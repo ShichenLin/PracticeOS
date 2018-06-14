@@ -11,3 +11,5 @@
     "bic r0, r0, #0x000000c0" \
     "msr cpsr, r0" \
   )
+
+void generic_interrupt_handler(void);

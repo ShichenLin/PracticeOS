@@ -12,7 +12,7 @@
 #define VERSATILE_SSMC_REGS_BASE 0x10100000 //synchronous static memory controller configuration registers
 #define VERSATILE_MPMC_REGS_BASE 0x10110000 //multi-port memory controller configuration registers
 #define VERSATILE_DMA_BASE 0x10130000
-#define VERSATILE_VIC_BASE 0x10140000 //vectored interrupt controller
+#define VERSATILE_PIC_BASE 0x10140000 // primary interrupt controller
 #define VERSATILE_SYSTEM_BASE 0x101e0000 //system controller
 #define VERSATILE_WATCHDOG_BASE 0x101e1000
 #define VERSATILE_TIMER0_BASE 0x101e2000

@@ -1,19 +1,9 @@
 /*******************************************************************************
 * This is a first-stage bootloader for Versatile (ARM926ejs)
 *******************************************************************************/
-#include "include/versatile.h"
 #include "boot.h"
-
-.thumb
-
-.globl text_start, text_end, data_start, data_end, bss_start, bss_end
-.text
-text_start:
-.data
-data_start:
-.bss
-bss_start:
-.text
+#include "../include/versatile.h"
+#include "../kernel/interrupts.h"
 
 /*******************************************************************************
 * Start Function (Link Entry Point)
@@ -21,14 +11,14 @@ bss_start:
 .globl _start
 _start:
   b reset
-  b _undefined_instruction
-  b _software_interrupt
-  b _prefetch_abort
-  b _data_abort
-  b _not_used
-  b _irq
-  b _fiq
-  
+  ldr pc, =_undefined_instruction
+  ldr pc, =_software_interrupt
+  ldr pc, =_prefetch_abort
+  ldr pc, =_data_abort
+  ldr pc, =_not_used
+  ldr pc, =_irq
+  ldr pc, =_fiq
+
 /*******************************************************************************
 * Reset Function
 *******************************************************************************/
@@ -37,7 +27,7 @@ _start:
 reset:
   /* Enter supervisor mode to disable interrupts */
   mrs	r0, cpsr
-	bic	r0, r0, #0x0000001f		@ clear all mode bits
+	bic	r0, r0, #0x0000001f
 	orr	r0, r0, #0x00000013		@ set SVC mode
 	orr	r0, r0, #0x000000c0		@ disable FIQ and IRQ
 	msr	cpsr, r0
@@ -126,7 +116,7 @@ code_offset:
   str r0, =VERSATILE_MPMC_REGS_BASE @ enable SDRAM
 
   /* Wait for SDRAM initialization (around a few hundred us) */
-  mov r0, #0xffff
+  mov r0, #10000
   mov r1, #0
 sdram_wait:
   sub r0, r0, #1
@@ -137,7 +127,7 @@ sdram_wait:
 relocate:
   ldr r2, =_program_end
   ldr r0, #0
-  ldr r1, =clear_bss
+  ldr r1, =_start
   ldmia	r1!, {r10-r11}
 	stmia	r0!, {r10-r11}
   cmp r2, r1
@@ -178,12 +168,30 @@ _not_used:		.word not_used
 _irq:			.word irq
 _fiq:			.word fiq
 
+/* Undefined exception handlers */
 undefined_instruction:
 software_interrupt:
 prefetch_abort:
 data_abort:
 not_used:
-irq:
 fiq:
 1:
-	bl	1b			/* hang and never return */
+	b	1b			/* hang and never return */
+
+/* Interrupt routine */
+irq:
+  /* Save registers to stack, enter IRQ mode and jump to generic_interrupt_handler */
+  sub lr, lr, #4 @ set lr to the interrupted instruction
+  stmfd sp!, {r0-r12, lr}
+  mrs	r0, cpsr
+  msr spsr, r0
+	bic	r0, r0, #0x0000001f
+	orr	r0, r0, #0x00000012		@ set IRQ mode
+  msr cpsr, r0
+  bl generic_interrupt_handler
+
+  /* Get the saved registers back from stack and return to the interrupted instruction */
+  mrs r0, spsr
+  msr cpsr, r0
+  ldmia sp!, {r0-r12, lr}
+  mov pc, lr

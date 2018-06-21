@@ -1,0 +1,1 @@
+This is a practice OS project with bootloader implemented based on ARM VersatilePB board. It is expected to be compiled through arm-none-eabi-gcc toolchain and tested via QEMU simulation.

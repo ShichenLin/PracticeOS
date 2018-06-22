@@ -17,4 +17,10 @@ SECTIONS{
     _bss_end = .;
   }
   _program_end = .;
+
+	.rel.dyn : {
+    _rel_dyn_start;
+		*(.rel*);
+    _rel_dyn_end = .;
+	}
 }

@@ -172,6 +172,7 @@ UART *uart_init(u8 port){
     return uart;
   }
   else{
+    /* initialize uart registers */
     uart->enable = 0;
     uart->parity = UART_NO_PARITY;
     uart->stop_bit_num = 1;
@@ -186,6 +187,8 @@ UART *uart_init(u8 port){
     uart_write_reg(uart->base_addr, UART_LINE_CTRL_REG, 0x60); //set to FIFOs disabled, no parity and 1 stop bit
     uart_write_reg(uart->base_addr, UART_ITR_MASK_REG, 0x078f); //mask out error and modem interrupts
     uart_write_reg(uart->base_addr, UART_CTROL_REG, 0x0300);
+
+    /* set corresponding uart interrupt handler */
     switch(port){
       case 0:
         PIC_irq_handler_tbl[PIC_UART0_IRQ] = uart0_interrupt_handler;

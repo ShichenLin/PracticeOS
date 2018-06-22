@@ -124,15 +124,35 @@ sdram_wait:
   bne sdram_wait
 
   /* Relocate the code and jump to SDRAM */
-relocate:
+relocate_code:
   ldr r2, =_program_end
   ldr r0, #0
   ldr r1, =_start
   ldmia	r1!, {r10-r11}
 	stmia	r0!, {r10-r11}
   cmp r2, r1
-  bne relocate
-  mov pc, #0
+  blo relocate_code
+
+  /* fix .rel.dyn relocations*/
+	ldr	r2, =_rel_dyn_start
+	ldr	r3, =_rel_dyn_end
+fixloop:
+	ldmia	r2!, {r0-r1}
+	and	r1, r1, #0xff
+	cmp	r1, #23
+	bne	fixnext
+
+	/* relative fix: increase location by offset */
+	add	r0, r0, r4
+	ldr	r1, [r0]
+	add	r1, r1, r4
+	str	r1, [r0]
+fixnext:
+	cmp	r2, r3
+	blo	fixloop
+
+  ldr r3, =clear_bss - VERSATILE_ROM_START
+  mov pc, r3
 
   /* Set bss variables to 0 */
 clear_bss:
@@ -176,9 +196,9 @@ data_abort:
 not_used:
 fiq:
 1:
-	b	1b			/* hang and never return */
+	b	1b			/* hang up and never return */
 
-/* Interrupt routine */
+/* IRQ routine */
 irq:
   /* Save registers to stack, enter IRQ mode and jump to generic_interrupt_handler */
   sub lr, lr, #4 @ set lr to the interrupted instruction

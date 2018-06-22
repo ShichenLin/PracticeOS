@@ -169,15 +169,15 @@ void void_interrupt_handler(void){
 void generic_interrupt_handler(void){
   u32 PIC_irq_status = PIC_read_reg(PIC_IRQ_STATUS_REG);
   u8 PIC_irq_source = PIC_indicate_irq_source(irq_status);
-  if(PIC_irq_source == 32){
+  if(PIC_irq_source == IRQ_MISS){
     irq_fail_count++;
     if (irq_fail_count == IRQ_FAIL_COUNT_LIMIT) reset();
   }
-  else if(PIC_irq_source == 31){
+  else if(PIC_irq_source == PIC_SIC_IRQ){
     PIC_clear_irq(PIC_irq_source);
     u32 SIC_irq_status = SIC_read_reg();
     u8 SIC_irq_source = SIC_indicate_irq_source(irq_status);
-    if(SIC_irq_source == 32){
+    if(SIC_irq_source == IRQ_MISS){
       irq_fail_count++;
       if (irq_fail_count == IRQ_FAIL_COUNT_LIMIT) reset();
     }

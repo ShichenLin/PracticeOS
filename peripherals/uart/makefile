@@ -3,5 +3,5 @@ OBJS = uart.c
 uart.o: $(OBJS)
 	$(CC) $(CCFLAGS) uart.o $(OBJS)
 
-clean：
+clean:
 	rm -f *.o

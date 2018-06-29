@@ -70,44 +70,44 @@
 #define IRQ_FAIL_COUNT_LIMIT 10
 
 /* macro definitions */
-#define PIC_read_reg(reg) ({
-  u32 *reg_addr = (u32 *)VERSATILE_PIC_BASE + reg;
-  *reg_addr;
+#define PIC_read_reg(reg) ({ \
+  u32 *reg_addr = (u32 *)(VERSATILE_PIC_BASE + reg); \
+  *reg_addr; \
 })
 
-#define PIC_write_reg(reg, data) ({
-  u32 *reg_addr = (u32 *)VERSATILE_PIC_BASE + reg;
-  *reg_addr = (u32)data;
+#define PIC_write_reg(reg, data) ({ \
+  u32 *reg_addr = (u32 *)(VERSATILE_PIC_BASE + reg); \
+  *reg_addr = (u32)data; \
 })
 
-#define PIC_enable_irq(irq) ({
-  u32 *enable_reg = (u32 *)VERSATILE_PIC_BASE + PIC_ENABLE_REG;
-  *enable_reg = 1 << irq;
+#define PIC_enable_irq(irq) ({ \
+  u32 *enable_reg = (u32 *)(VERSATILE_PIC_BASE + PIC_ENABLE_REG); \
+  *enable_reg = 1 << irq; \
 })
 
-#define PIC_clear_irq(irq) ({
-  u32 *clr_reg = (u32 *)VERSATILE_PIC_BASE + PIC_ENABLE_CLR_REG;
-  *clr_reg = 1 << irq;
+#define PIC_clear_irq(irq) ({ \
+  u32 *clr_reg = (u32 *)(VERSATILE_PIC_BASE + PIC_ENABLE_CLR_REG); \
+  *clr_reg = 1 << irq; \
 })
 
-#define SIC_read_reg(reg) ({
-  u32 *reg_addr = (u32 *)VERSATILE_SIC_BASE + reg;
-  *reg_addr;
+#define SIC_read_reg(reg) ({ \
+  u32 *reg_addr = (u32 *)(VERSATILE_SIC_BASE + reg); \
+  *reg_addr; \
 })
 
-#define SIC_write_reg(reg, data) ({
-  u32 *reg_addr = (u32 *)VERSATILE_SIC_BASE + reg;
-  *reg_addr = (u32)data;
+#define SIC_write_reg(reg, data) ({ \
+  u32 *reg_addr = (u32 *)(VERSATILE_SIC_BASE + reg); \
+  *reg_addr = (u32)data; \
 })
 
-#define SIC_enable_irq(irq) ({
-  u32 *enable_reg = (u32 *)VERSATILE_SIC_BASE + SIC_ENABLE_REG;
-  *enable_reg = 1 << irq;
+#define SIC_enable_irq(irq) ({ \
+  u32 *enable_reg = (u32 *)(VERSATILE_SIC_BASE + SIC_ENABLE_REG); \
+  *enable_reg = 1 << irq; \
 })
 
-#define SIC_clear_irq(irq) ({
-  u32 *clr_reg = (u32 *)VERSATILE_SIC_BASE + SIC_ENABLE_CLR_REG;
-  *clr_reg = 1 << irq;
+#define SIC_clear_irq(irq) ({ \
+  u32 *clr_reg = (u32 *)(VERSATILE_SIC_BASE + SIC_ENABLE_CLR_REG); \
+  *clr_reg = 1 << irq; \
 })
 
 /* global variables */
@@ -168,15 +168,15 @@ void void_interrupt_handler(void){
 
 void generic_interrupt_handler(void){
   u32 PIC_irq_status = PIC_read_reg(PIC_IRQ_STATUS_REG);
-  u8 PIC_irq_source = PIC_indicate_irq_source(irq_status);
+  u8 PIC_irq_source = PIC_indicate_irq_source(PIC_irq_status);
   if(PIC_irq_source == IRQ_MISS){
     irq_fail_count++;
     if (irq_fail_count == IRQ_FAIL_COUNT_LIMIT) reset();
   }
   else if(PIC_irq_source == PIC_SIC_IRQ){
     PIC_clear_irq(PIC_irq_source);
-    u32 SIC_irq_status = SIC_read_reg();
-    u8 SIC_irq_source = SIC_indicate_irq_source(irq_status);
+    u32 SIC_irq_status = SIC_read_reg(SIC_STATUS_REG);
+    u8 SIC_irq_source = SIC_indicate_irq_source(SIC_irq_status);
     if(SIC_irq_source == IRQ_MISS){
       irq_fail_count++;
       if (irq_fail_count == IRQ_FAIL_COUNT_LIMIT) reset();
@@ -201,4 +201,5 @@ void irq_init(void){
     PIC_irq_handler_tbl[i] = void_interrupt_handler;
     SIC_irq_handler_tbl[i] = void_interrupt_handler;
   }
+  enable_interrupts();
 }

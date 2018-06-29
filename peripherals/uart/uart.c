@@ -1,3 +1,5 @@
+#include <string.h>
+#include <stdio.h>
 #include "uart.h"
 #include "../../include/types.h"
 #include "../../include/versatile.h"
@@ -47,14 +49,14 @@
 #endif
 
 /* macro definitions */
-#define uart_read_reg(base_addr, reg) ({
-  u16 *reg_addr = (u16 *)(base_addr + reg);
-  *reg_addr;
+#define uart_read_reg(base_addr, reg) ({ \
+  u32 *reg_addr = (u32 *)(base_addr + reg); \
+  *reg_addr; \
 })
 
-#define uart_write_reg(base_addr, reg, data) ({
-  u16 *reg_addr = (u16 *)(base_addr + reg);
-  *reg_addr = (u16)data;
+#define uart_write_reg(base_addr, reg, data) ({ \
+  u32 *reg_addr = (u32 *)(base_addr + reg); \
+  *reg_addr = (u16)data; \
 })
 
 /* global variables */
@@ -136,6 +138,7 @@ static u16 uart_rx_buffer_end[3] = {0};
 #endif
 
 static u8 uart_tx_flag = 0;
+static u8 uart_rx_flag = 0;
 static u8 uart_rx_error_flag = 0;
 
 /* helper function */
@@ -151,13 +154,13 @@ static u16 get_rx_data_size(u8 port){
 static void read_uart_rx_buffer(UART* uart, u8* dest, u32 len){
   while(get_rx_data_size(uart->port) < len);
   if(UART_RX_BUFFER_SIZE - uart_rx_buffer_start[uart->port] < len){
-    memcpy(dest, &(uart_rx_buffer[uart->port][uart_rx_buffer_start[uart->port]]), UART_BUFFER_SIZE - uart_rx_buffer_start[uart->port]));
-    uart_rx_buffer_start[uart->port] = (uart_rx_buffer_start[uart->port] + len) % UART_BUFFER_SIZE;
-    memcpy(dest, &(uart_rx_buffer[uart->port][0]), uart_rx_buffer_start[uart->port]));
+    memcpy(dest, &(uart_rx_buffer[uart->port][uart_rx_buffer_start[uart->port]]), UART_RX_BUFFER_SIZE - uart_rx_buffer_start[uart->port]);
+    uart_rx_buffer_start[uart->port] = (uart_rx_buffer_start[uart->port] + len) % UART_RX_BUFFER_SIZE;
+    memcpy(dest, &(uart_rx_buffer[uart->port][0]), uart_rx_buffer_start[uart->port]);
   }
   else{
-    memcpy(dest, &(uart_rx_buffer[uart->port][uart_rx_buffer_start[uart->port]], len));
-    uart_rx_buffer_start[uart->port] = (uart_rx_buffer_start[uart->port] + len) % UART_BUFFER_SIZE;
+    memcpy(dest, &(uart_rx_buffer[uart->port][uart_rx_buffer_start[uart->port]]), len);
+    uart_rx_buffer_start[uart->port] = (uart_rx_buffer_start[uart->port] + len) % UART_RX_BUFFER_SIZE;
   }
 }
 
@@ -182,11 +185,11 @@ UART *uart_init(u8 port){
     float baud_rate_divisor = (float)UART_CLK_SPEED / (16 * uart->baud_rate);
     u16 divisor_int = baud_rate_divisor;
     u16 divisor_frac = (baud_rate_divisor - divisor_int) * 64;
-    uart_write_reg(uart->base-addr, UART_I_BAUD_RATE_REG, divisor_int);
-    uart_write_reg(uart->base-addr, UART_I_BAUD_RATE_REG, divisor_frac);
+    uart_write_reg(uart->base_addr, UART_I_BAUD_RATE_REG, divisor_int);
+    uart_write_reg(uart->base_addr, UART_I_BAUD_RATE_REG, divisor_frac);
     uart_write_reg(uart->base_addr, UART_LINE_CTRL_REG, 0x60); //set to FIFOs disabled, no parity and 1 stop bit
     uart_write_reg(uart->base_addr, UART_ITR_MASK_REG, 0x078f); //mask out error and modem interrupts
-    uart_write_reg(uart->base_addr, UART_CTROL_REG, 0x0300);
+    uart_write_reg(uart->base_addr, UART_CTRL_REG, 0x0300);
 
     /* set corresponding uart interrupt handler */
     switch(port){
@@ -213,7 +216,7 @@ u8 uart_enable(UART* uart){
     uart->enable = 1;
     u16 ctrl_reg = uart_read_reg(uart->base_addr, UART_CTRL_REG);
     ctrl_reg |= 0x0001; //enable uart
-    uart_write_reg(uart->base_addr, UART_CTROL_REG, ctrl_reg);
+    uart_write_reg(uart->base_addr, UART_CTRL_REG, ctrl_reg);
   }
   return UART_SUCCESS;
 }
@@ -224,7 +227,7 @@ u8 uart_disable(UART* uart){
     uart->enable = 0;
     u16 ctrl_reg = uart_read_reg(uart->base_addr, UART_CTRL_REG);
     ctrl_reg &= 0xfffe; //disable uart
-    uart_write_reg(uart->base_addr, UART_CTROL_REG, ctrl_reg);
+    uart_write_reg(uart->base_addr, UART_CTRL_REG, ctrl_reg);
   }
   return UART_SUCCESS;
 }
@@ -267,11 +270,11 @@ u8 uart_apply_configs(UART* uart){
   u16 divisor_int = baud_rate_divisor;
   u16 divisor_frac = (baud_rate_divisor - divisor_int) * 64;
 
-  if(uart_disable(uart) == UART_FAILURE) return UARRT_FAILURE;
-  uart_write_reg(uart->base-addr, UART_I_BAUD_RATE_REG, divisor_int);
-  uart_write_reg(uart->base-addr, UART_I_BAUD_RATE_REG, divisor_frac);
+  if(uart_disable(uart) == UART_FAILURE) return UART_FAILURE;
+  uart_write_reg(uart->base_addr, UART_I_BAUD_RATE_REG, divisor_int);
+  uart_write_reg(uart->base_addr, UART_I_BAUD_RATE_REG, divisor_frac);
   uart_write_reg(uart->base_addr, UART_LINE_CTRL_REG, line_ctrl_reg);
-  if(uart_enable(uart) == UART_FAILURE) return UARRT_FAILURE;
+  if(uart_enable(uart) == UART_FAILURE) return UART_FAILURE;
   return UART_SUCCESS;
 }
 
